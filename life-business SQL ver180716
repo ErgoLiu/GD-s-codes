@@ -1,0 +1,522 @@
+--drop table dev_tmp.jrapp_shenghuo_ordersry4;
+create table dev_tmp.jrapp_shenghuo_ordertjy0507--表名命名原则为姓名缩写+4位日期
+    as
+    select a.time
+          ,a.customer_id
+          ,a.order_id
+          ,a.amount
+          ,a.merchant_no
+    from(
+         select customer_id
+               ,order_id
+               ,amount,dt as time
+               ,merchant_no
+               ,channel
+         from dmv.dwb_wallet_prod_order_i_d
+              where status='1'
+                and ((merchant_no = '一卡通' and channel in ('1'))   --充值成功         
+                 or (merchant_no = '加油卡充值' and channel in ('jdjr','jdjr-m','jdjrapp-h5') )   --支付成功      
+                 or (merchant_no = '卡转让' and channel in ('1','4') )      --转让成功(非支付)      
+                 or (merchant_no = '定期还款' and channel in ('JDJR_APP') )      --扣款成功
+                 or (merchant_no = '定期还款-转账' and channel in ('JDJR_APP') )              
+                 or (merchant_no = '水电煤' and channel in ('4') )     --支付成功
+                 or (merchant_no = '话费充值' and channel in ('jrapp') )  --支付成功
+                 or (merchant_no = '拍立返' and channel in ('1') )
+        ))a        
+    group by a.time
+            ,a.customer_id
+            ,a.order_id
+            ,a.amount
+            ,a.merchant_no;
+
+--插入信用卡还款部分）
+insert into table dev_tmp.jrapp_shenghuo_ordertjy0517
+select --信用卡还款用户支付情况
+      substr(s.created_date,1,10) as time
+     ,s.customer_id
+     ,s.ordernum as order_id
+     ,order_amount as amount
+     ,'信用卡还款' as merchant_no
+from (
+      select *
+            ,row_number()over(partition by ordernum order by modified_date desc) as rn
+      from dmv.dwb_wallet_credit_card_repay_det_s_d 
+           where dt= sysdate(-1)
+             and sec_source in ('jr')
+             and order_state='PAYSUC' 
+     )s
+    where s.rn=1 
+group by substr(s.created_date,1,10)
+        ,s.customer_id
+        ,s.ordernum 
+        ,order_amount
+--生活业务DAU（key）
+select dt,count(distinct deviceid)
+from dmv.dwd_brs_jr_app_dau_i_d
+     where dt BETWEEN sysdate(-8)  and sysdate(-1)
+       and key in ('hjy_shouye',
+'hjy_dingdan',
+'hjy_zhifu',
+'hjy_dgb_shouye',
+'hjy_dgb_mycard',
+'hjy_dgb_chongzhijilu',
+'hjy_dgb_dingdanxiangqing',
+'hjy_dgb_dingdanjilu',
+'hjy_dgb_dingdanqueren',
+'hjy_dgb_shenqingtuikuan',
+'hjy_zhifuwancheng',
+'dbjyk_shouye',
+'dbjyk_shenqingjilu',
+'dbjyk_shenqingxiangqing',
+'dbjyk_shenqingjyk',
+'kzr_shouye',
+'kzr_huaka',
+'kzr_huafei',
+'kzr_jiayou',
+'kzr_youka',
+'kzr_suning',
+'kzr_yihaodian',
+'kzr_zhuanrang',
+'kzr_zhuanrangjilu',
+'kzr_zhuanrangjieguo',
+'xykhk_shouye',
+'xykhk_kaguanli',
+'xykhk_zhifu',
+'xykhk_huankuanjieguo',
+'xykhk_yuyuehuankuan',
+'xykhk_yuyueyanzheng',
+'xykhk_yuyuejieguo',
+'xykhk_kaguanli_huankuantixing',
+'xykhk_huankuan',
+'xykhk_tianka',
+'CCR_homePage',
+'CCR_addCardPage',
+'CCR_repayPage',
+'CCR_advancedRepay_withholdSignPage',
+'CCR_advancedRepay_withholdDetailPage',
+'CCR_recordPage',
+'CCR_repayResultPage',
+'CCR_advancedRepayPage',
+'CCR_advancedRepay_withholdResultPage',
+'CCR_advancedRepay_prestoreResultPage',
+'CCR_advancedRepay_prestoreDetailPage',
+'plf_shouye',
+'plf_shangchengfan',
+'plf_xiaopiaofan',
+'plf_xiangqing',
+'plf_wode',
+'plf_shoucangqingdan',
+'plf_xuanzeshangpin',
+'plf_tijiao',
+'plf_xiangqingnew',--拍立返新加key
+'dqhk_shouye',
+'dqhk_shoukuanshezhi_huanchedai',
+'dqhk_chukuanshezhi_huanchedai',
+'dqhk_shezhiyanzheng_huanchedai',
+'dqhk_shoukuanshezhi_huanfangdai',
+'dqhk_chukuanshezhi_huanfangda',
+'dqhk_shezhiyanzheng_huanfangda',
+'dqhk_shoukuanshezhi_fufangzu',
+'dqhk_chukuanshezhi_fufangzu',
+'dqhk_shezhiyanzheng_fufangzu',
+'dqhk_shoukuanshezhi_geita',
+'dqhk_chukuanshezhi_geita',
+'dqhk_shezhiyanzheng_geita',
+'dqhk_shoukuanshezhi_geifumu',
+'dqhk_chukuanshezhi_geifumu',
+'dqhk_shezhiyanzheng_geifumu',
+'dqhk_shoukuanshezhi_woyaohuankuan',
+'dqhk_chukuanshezhi_woyaohuankuan',
+'dqhk_shezhiyanzheng_woyaohuankuan',
+'dqhk_shoukuanshezhi_huanfangdai',
+'dqhk_chukuanshezhi_huanfangdai',
+'dqhk_shezhiyanzheng_huanfangdai',
+'dqhk_rewuliebiao_quanbu',
+'dqhk_renwujilu',
+'dqhk_renwuxiangqing',
+'dqhk_xuanzeshoukuanka',
+'dqhk_huankuanjilu',
+'dqhk_shoukuanshezhi1_woyaohuankuan',
+'dqhk_chukuanshezhi1_woyaohuankuan',
+'dqhk_shezhiyanzheng1_woyaohuankuan',
+'dqhk_shezhichenggong_woyaohuankuan',
+'dqhk_zhichiyinhang',
+'dqhk_shoukuanshezhi2_woyaohuankuan',
+'dqhk_chukuanshezhi2_woyaohuankuan',
+'dqhk_shezhiyanzheng2_woyaohuankuan',
+'dqhk_renwuliebiao_benyue',
+'dqhk_renwuliebiao_shixiao',
+'dqhk_shoukuanshezhi1_geifumu',
+'dqhk_chukuanshezhi1_geifumu',
+'dqhk_shezhiyanzheng1_geifumu',
+'dqhk_shezhichenggong_geifumu',
+'dqhk_shoukuanshezhi1_huanfangdai',
+'dqhk_chukuanshezhi1_huanfangdai',
+'dqhk_shezhiyanzheng1_huanfangdai',
+'dqhk_shezhichenggong_huanfangdai',
+'dqhk_shoukuanshezhi1_geita',
+'dqhk_chukuanshezhi1_geita',
+'dqhk_shezhiyanzheng1_geita',
+'dqhk_shezhichenggong_geita',
+'dqhk_shoukuanshezhi2_geifumu',
+'dqhk_chukuanshezhi2_geifumu',
+'dqhk_shoukuanshezhi1_huanchedai',
+'dqhk_chukuanshezhi1_huanchedai',
+'dqhk_shoukuanshezhi2_geita',
+'dqhk_chukuanshezhi2_geita',
+'dqhk_shezhiyanzheng1_huanchedai',
+'dqhk_shezhichenggong_huanchedai',
+'dqhk_shoukuanshezhi2_huanfangdai',
+'dqhk_chukuanshezhi2_huanfangdai',
+'dqhk_shezhiyanzheng2_huanfangdai',
+'dqhk_shoukuanshezhi1_fufangzu',
+'dqhk_chukuanshezhi1_fufangzu',
+'dqhk_shezhishenhe_huanfangdai',
+'dqhk_shezhiyanzheng1_fufangzu',
+'dqhk_shezhichenggong_fufangzu',
+'dqhk_shezhiyanzheng2_geita',
+'dqhk_shezhishenhe_geita',
+'dqhk_shezhiyanzheng2_geifumu',
+'dqhk_shezhishenhe_geifumu',
+'dqhk_shoukuanshezhi2_huanchedai',
+'dqhk_chukuanshezhi2_huanchedai',
+'dqhk_shezhiyanzheng2_huanchedai',
+'dqhk_shezhishenhe_huanchedai',
+'dqhk_shoukuanshezhi2_fufangzu',
+'dqhk_chukuanshezhi2_fufangzu',
+'dqhk_shezhiyanzheng2_fufangzu',
+'dqhk_shezhishenhe_fufangzu',
+'dqhk_shezhishenhe_woyaohuankuan',
+'dqhk_zhuanzhang',
+'dqhk_zhichiyinhang2',
+'dqhk_zhuanzhang_xjk',
+'dqhk_xuanzeshoukuanka2',
+'dqhk_zhuanzhangyanzheng',
+'dqhk_zhuanzhangyanzheng_xjk',
+'recharge_list',
+'recharge_flow_list',
+'sdm_shouye',
+'sdm_jiaofeijilu_shui',
+'sdm_jiaofeijilu_dian',
+'sdm_jiaofeijilu_ranqi',
+'sdm_xinzengjiaofei_shui',
+'sdm_xinzengjiaofei_dian',
+'sdm_xinzengjiaofei_ranqi',
+'sdm_querenjiaofei_shui',
+'sdm_querenjiaofei_dian',
+'sdm_querenjiaofei_ranqi',
+'ykt_shouye',
+'ykt_chongzhiyemian',
+'ykt_ercitieka',
+'ykt_kaliebiao',
+'czfw_shouye',
+'czfw_cheliangzhuangtai',
+'czfw_aicheguanli',
+'czfw_tianjiaaicheone',
+'czfw_tianjiaaichetwo',
+'czfw_tianjiaaichethree',
+'czfw_wanshanxinxi',
+'czfw_quanbufuwu',
+'czfw_wangqizhuda'
+'queryAwardIndex',
+'queryAwardResultsList',
+'queryPerioLotteryDetails')
+group by dt
+order by dt
+
+
+
+--生活各业务DAU（不看一卡通了）
+select substr(dt,1,10)as dt
+      ,fyw
+      ,count (distinct deviceid) as click          
+from (
+    select *
+           ,case  when key in ( 'dqhk_chukuanshezhi1_fufangzu',
+                                'dqhk_chukuanshezhi1_geifumu',
+                                'dqhk_chukuanshezhi1_geita',
+                                'dqhk_chukuanshezhi1_huanchedai',
+                                'dqhk_chukuanshezhi1_huanfangdai',
+                                'dqhk_chukuanshezhi1_woyaohuankuan',
+                                'dqhk_chukuanshezhi2_fufangzu',
+                                'dqhk_chukuanshezhi2_geifumu',
+                                'dqhk_chukuanshezhi2_geita',
+                                'dqhk_chukuanshezhi2_huanchedai',
+                                'dqhk_chukuanshezhi2_huanfangdai',
+                                'dqhk_chukuanshezhi2_woyaohuankuan',
+                                'dqhk_chukuanshezhi_fufangzu',
+                                'dqhk_chukuanshezhi_geifumu',
+                                'dqhk_chukuanshezhi_geita',
+                                'dqhk_chukuanshezhi_huanchedai',
+                                'dqhk_chukuanshezhi_huanfangda',
+                                'dqhk_chukuanshezhi_huanfangdai',
+                                'dqhk_chukuanshezhi_woyaohuankuan',
+                                'dqhk_huankuanjilu',
+                                'dqhk_renwujilu',
+                                'dqhk_renwuliebiao_benyue',
+                                'dqhk_renwuliebiao_shixiao',
+                                'dqhk_renwuxiangqing',
+                                'dqhk_rewuliebiao_quanbu',
+                                'dqhk_shezhichenggong_fufangzu',
+                                'dqhk_shezhichenggong_geifumu',
+                                'dqhk_shezhichenggong_geita',
+                                'dqhk_shezhichenggong_huanchedai',
+                                'dqhk_shezhichenggong_huanfangdai',
+                                'dqhk_shezhichenggong_woyaohuankuan',
+                                'dqhk_shezhishenhe_fufangzu',
+                                'dqhk_shezhishenhe_geifumu',
+                                'dqhk_shezhishenhe_geita',
+                                'dqhk_shezhishenhe_huanchedai',
+                                'dqhk_shezhishenhe_huanfangdai',
+                                'dqhk_shezhishenhe_woyaohuankuan',
+                                'dqhk_shezhiyanzheng1_fufangzu',
+                                'dqhk_shezhiyanzheng1_geifumu',
+                                'dqhk_shezhiyanzheng1_geita',
+                                'dqhk_shezhiyanzheng1_huanchedai',
+                                'dqhk_shezhiyanzheng1_huanfangdai',
+                                'dqhk_shezhiyanzheng1_woyaohuankuan',
+                                'dqhk_shezhiyanzheng2_fufangzu',
+                                'dqhk_shezhiyanzheng2_geifumu',
+                                'dqhk_shezhiyanzheng2_geita',
+                                'dqhk_shezhiyanzheng2_huanchedai',
+                                'dqhk_shezhiyanzheng2_huanfangdai',
+                                'dqhk_shezhiyanzheng2_woyaohuankuan',
+                                'dqhk_shezhiyanzheng_fufangzu',
+                                'dqhk_shezhiyanzheng_geifumu',
+                                'dqhk_shezhiyanzheng_geita',
+                                'dqhk_shezhiyanzheng_huanchedai',
+                                'dqhk_shezhiyanzheng_huanfangda',
+                                'dqhk_shezhiyanzheng_huanfangdai',
+                                'dqhk_shezhiyanzheng_woyaohuankuan',
+                                'dqhk_shoukuanshezhi1_fufangzu',
+                                'dqhk_shoukuanshezhi1_geifumu',
+                                'dqhk_shoukuanshezhi1_geita',
+                                'dqhk_shoukuanshezhi1_huanchedai',
+                                'dqhk_shoukuanshezhi1_huanfangdai',
+                                'dqhk_shoukuanshezhi1_woyaohuankuan',
+                                'dqhk_shoukuanshezhi2_fufangzu',
+                                'dqhk_shoukuanshezhi2_geifumu',
+                                'dqhk_shoukuanshezhi2_geita',
+                                'dqhk_shoukuanshezhi2_huanchedai',
+                                'dqhk_shoukuanshezhi2_huanfangdai',
+                                'dqhk_shoukuanshezhi2_woyaohuankuan',
+                                'dqhk_shoukuanshezhi_fufangzu',
+                                'dqhk_shoukuanshezhi_geifumu',
+                                'dqhk_shoukuanshezhi_geita',
+                                'dqhk_shoukuanshezhi_huanchedai',
+                                'dqhk_shoukuanshezhi_huanfangdai',
+                                'dqhk_shoukuanshezhi_woyaohuankuan',
+                                'dqhk_shouye',
+                                'dqhk_xuanzeshoukuanka',
+                                'dqhk_xuanzeshoukuanka2',
+                                'dqhk_zhichiyinhang',
+                                'dqhk_zhichiyinhang2',
+                                'dqhk_zhuanzhang',
+                                'dqhk_zhuanzhang_xjk',
+                                'dqhk_zhuanzhangyanzheng',
+                                'dqhk_zhuanzhangyanzheng_xjk',
+                                'dqhk_shoukuanshezhi_huanfangda') then '定期还款'                                  
+                   when key in ('plf_shouye',
+                                'plf_shangchengfan',
+                                'plf_xiaopiaofan',
+                                'plf_xiangqing',
+                                'plf_wode',
+                                'plf_shoucangqingdan',
+                                'plf_xuanzeshangpin',
+                               'plf_tijiao',
+                                'plf_xiangqingnew') then '拍立返'                                  
+                  when key in('xykhk_shouye',
+                                'xykhk_kaguanli',
+                                'xykhk_zhifu',
+                                'xykhk_huankuanjieguo',
+                                'xykhk_yuyuehuankuan',
+                                'xykhk_yuyueyanzheng',
+                                'xykhk_yuyuejieguo',
+                                'xykhk_kaguanli_huankuantixing',
+                                'xykhk_huankuan',
+                                'xykhk_tianka',
+                                'CCR_homePage',
+                                'CCR_addCardPage',
+                                'CCR_repayPage',
+                                'CCR_advancedRepay_withholdSignPage',
+                                'CCR_advancedRepay_withholdDetailPage',
+                                'CCR_recordPage',
+                                'CCR_repayResultPage',
+                                'CCR_advancedRepayPage',
+                                'CCR_advancedRepay_withholdResultPage',
+                                'CCR_advancedRepay_prestoreResultPage',
+                                'CCR_advancedRepay_prestoreDetailPage' ) then '信用卡还款'  
+                    when key in('recharge_list'
+                               ,'recharge_flow_list')then '手机充值'
+                    when key in('sdm_shouye',
+                                'sdm_jiaofeijilu_shui',
+                                'sdm_jiaofeijilu_dian',
+                                'sdm_jiaofeijilu_ranqi',
+                                'sdm_xinzengjiaofei_shui',
+                                'sdm_xinzengjiaofei_dian',
+                                'sdm_xinzengjiaofei_ranqi',
+                                'sdm_querenjiaofei_shui',
+                                'sdm_querenjiaofei_dian',
+                                'sdm_querenjiaofei_ranqi')then '水电煤'
+                   when key in ('ykt_shouye',
+                                'ykt_chongzhiyemian',
+                                'ykt_ercitieka',
+                                'ykt_kaliebiao')then '一卡通'
+                   when key in(
+                                'ZZ_homePage',
+                                'ZZ_receiveSmsVeriyPage',
+                                'ZZ_receiveListPage',
+                                'ZZ_tranFriends1stPage',
+                                'ZZ_tranFriends2rdPage',
+                                'ZZ_receivePage',
+                                'ZZ_receiveCardPage',
+                                'ZZ_cardTransferPage',
+                                'ZZ_xjkCardTransferPage',
+                                'ZZ_tranCardPage',
+                                'ZZ_xjkTranCardPage',
+                                'ZZ_xjkTransferSmsSignPage',
+                                'ZZ_tranDetailPage',
+                                'ZZ_recordPage'  )then '转账'
+                  when key in ( 'hjy_shouye',
+                                'hjy_dingdan',
+                                'hjy_zhifu',
+                                'hjy_dgb_shouye',
+                                'hjy_dgb_mycard',
+                                'hjy_dgb_chongzhijilu',
+                                'hjy_dgb_dingdanxiangqing',
+                                'hjy_dgb_dingdanjilu',
+                                'hjy_dgb_dingdanqueren',
+                                'hjy_dgb_shenqingtuikuan',
+                                'hjy_zhifuwancheng') then '惠加油' 
+                   when key in ('queryAwardIndex',
+                                'queryAwardResultsList',
+                                'queryPerioLotteryDetails') then '彩票'                                
+                   when key in ('kzr_shouye',
+                                'kzr_huaka',
+                                'kzr_huafei',
+                                'kzr_jiayou',
+                                'kzr_youka',
+                                'kzr_suning',
+                                'kzr_yihaodian',
+                                'kzr_zhuanrang',
+                                'kzr_zhuanrangjilu',
+                                'kzr_zhuanrangjieguo')then '卡转让'                          
+                 end as fyw                   
+    from dmv.dwd_brs_jr_app_dau_i_d                  
+         where dt BETWEEN sysdate(-8) and sysdate(-1) )a          
+group by substr(dt,1,10),fyw         
+order by substr(dt,1,10)
+
+--金融appDAU
+select act_date
+      ,count(distinct deviceid)
+from dmv.dmt_brs_jr_jrapp_user_active_det_jrm_i_d
+     where act_date between  sysdate(-7) and sysdate(-1)
+group by act_date
+order by act_date;
+
+
+
+--4.1取业务新用户
+select substr(b.time,1,10)
+      ,b.merchant_no
+      ,count(distinct b.customer_id)
+from
+    (select a.*
+           ,row_number()over(partition by customer_id,merchant_no order by time asc) as rn
+     from
+         (select customer_id
+                ,order_id
+                ,time
+                ,merchant_no
+          from dev_tmp.jrapp_shenghuo_ordertjy0505)a
+         )b
+    where b.rn=1
+      and substr(b.time,1,10) between sysdate(-14) and sysdate(-1)
+group by substr(b.time,1,10) ,b.merchant_no;
+
+
+
+--4.2merchant_no是各业务分类，去掉为整体结果
+select substr(b.time,1,10)
+      ,count(distinct b.customer_id)
+from
+    (select a.*
+           ,row_number() over (partition by customer_id order by time asc) as rn
+    from
+        (select customer_id
+               ,order_id
+               ,time
+         from dev_tmp.jrapp_shenghuo_ordertjy0518)a
+        )b
+    where b.rn=1
+      and substr(b.time,1,10) between sysdate(-14) and sysdate(-1)
+group by substr(b.time,1,10);
+
+
+--各业务用户，订单，金额
+select substr(time,1,10) as dt
+      ,count(distinct customer_id) as user
+      ,count(distinct order_id) as order_no
+      ,sum(amount) as amount
+      ,merchant_no
+from dev_tmp.jrapp_shenghuo_ordertjy0518
+     where substr(time,1,10) between sysdate(-7) and sysdate(-1)
+group by substr(time,1,10),merchant_no
+order by dt;
+
+--交易用户总体
+select substr(time,1,10) as dt
+      ,count(distinct customer_id) as user
+      ,count(distinct order_id) as order_no
+      ,sum(amount) as amount
+from dev_tmp.jrapp_shenghuo_ordertjy0508
+     where substr(time,1,10) between sysdate(-7) and sysdate(-1)
+group by substr(time,1,10)
+order by dt;
+
+--KPI交易人数
+select count(distinct customer_id) as user
+from dev_tmp.jrapp_shenghuo_ordertjy0605
+     where substr(time,1,10) between '2018-07-01' and sysdate(-1)
+
+--累计交易用户
+select  count(distinct customer_id) as user
+from dev_tmp.jrapp_shenghuo_ordertjy0505
+where substr(time,1,10) between  '2018-01-01' and sysdate(-1)
+
+--非银联垫资渠道
+select substr(created_date,1,10) as rq
+      ,merchantid
+      ,source
+      ,sum(pay_amount)/100 as jine 
+from dmv.dwd_wallet_pla_order_info_s_d
+     where dt =sysdate(-1)
+       and order_type='CCR' and order_state='PAYSUC'
+       and substr(created_date,1,10) between sysdate(-7) and sysdate(-1)
+group by substr(created_date,1,10)
+        ,merchantid
+        ,source;        
+
+--车主服务pv、uv(17日新版-取所有key和取冗余)
+select substr(createtime,1,10) as dt
+      ,count(deviceid),count(distinct deviceid)
+from dmv.dwd_brs_jr_app_dau_i_d
+     where substr(createtime,1,10) between sysdate(-14) and sysdate(-1)
+       and key in('czfw_shouye','czfw_cheliangzhuangtai','czfw_aicheguanli','czfw_tianjiaaicheone'
+                 ,'czfw_tianjiaaichetwo','czfw_tianjiaaichethree','czfw_wanshanxinxi'
+                 ,'czfw_quanbufuwu','czfw_wangqizhuda')
+group by substr(createtime,1,10)
+
+--车主数据
+SELECT  a.c AS car
+       ,a.u AS user
+       ,b.u AS user_jr
+       ,b.c AS car_jr
+FROM 
+    (SELECT COUNT(1) as c
+          , COUNT(DISTINCT(jd_pin)) as u
+     FROM dmv.DWD_APP_JR_CAR_INFO_I_D) a,
+    (SELECT COUNT(1) as c
+          , COUNT(DISTINCT(jd_pin)) as u
+     FROM dmv.DWD_APP_JR_CAR_INFO_I_D WHERE jd_mq=0) b;
